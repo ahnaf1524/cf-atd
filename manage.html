@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Manage Submissions</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .tag-btn {
+      margin: 4px;
+      cursor: pointer;
+    }
+    .tag-btn.active {
+      background-color: #0d6efd !important;
+      color: white !important;
+    }
+    .modal-body code {
+      background: #f8f9fa;
+      padding: 4px 6px;
+      border-radius: 4px;
+    }
+    .scrollable-modal {
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .search-bar {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">CF Crackers</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" aria-current="page" href="./index.html">From Fill Up</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="./manage.html">All Submissions</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+
+
+
+<div class="container py-5">
+  <h2 class="mb-4 text-center">📚 Manage CP Submissions</h2>
+
+  <!-- Search Bar -->
+  <div class="search-bar mb-4">
+    <input type="text" id="searchInput" class="form-control" placeholder="Search by User or Problem Title..." oninput="renderTable()">
+  </div>
+
+  <!-- Back to All Button -->
+  <div class="mb-4">
+    <button id="backToAllBtn" class="btn btn-secondary" onclick="resetFilters()">Back to All Categories</button>
+  </div>
+
+  <h5>Filter by Tag:</h5>
+  <div id="tagContainer" class="mb-4 d-flex flex-wrap"></div>
+
+  <div class="table-responsive">
+    <table class="table table-hover table-bordered bg-white rounded shadow-sm">
+      <thead class="table-primary text-center">
+        <tr>
+          <th>#</th>
+          <th>Handle</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th>Tags</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody" class="align-middle"></tbody>
+    </table>
+  </div>
+
+  <!-- Pagination Controls -->
+  <nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center" id="pagination"></ul>
+  </nav>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content shadow">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">Submission Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body scrollable-modal" id="modalContent"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  const API_URL = "http://localhost:5000/api/submissions";
+  const tableBody = document.getElementById("tableBody");
+  const tagContainer = document.getElementById("tagContainer");
+  const modalContent = document.getElementById("modalContent");
+  const searchInput = document.getElementById("searchInput");
+  const backToAllBtn = document.getElementById("backToAllBtn");
+  const pagination = document.getElementById("pagination");
+
+  let allData = [];
+  let selectedTag = "";
+  let searchQuery = "";
+  const rowsPerPage = 5;
+  let currentPage = 1;
+
+  async function fetchData() {
+    const res = await fetch(API_URL);
+    allData = await res.json();
+    populateTags();
+    renderTable();
+    setupPagination();
+  }
+
+  function populateTags() {
+    const tagSet = new Set();
+    allData.forEach(entry => {
+      if (entry.solvedStatus === "yes") {
+        entry.problems.forEach(p => {
+          p.tags?.split(',').forEach(tag => tagSet.add(tag.trim()));
+        });
+      }
+    });
+
+    const sortedTags = [...tagSet].sort();
+    tagContainer.innerHTML = "";
+    sortedTags.forEach(tag => {
+      const span = document.createElement("span");
+      span.className = "badge rounded-pill bg-secondary tag-btn";
+      span.textContent = tag;
+      span.onclick = () => {
+        if (selectedTag === tag) {
+          selectedTag = "";
+          span.classList.remove("active");
+        } else {
+          selectedTag = tag;
+          document.querySelectorAll(".tag-btn").forEach(el => el.classList.remove("active"));
+          span.classList.add("active");
+        }
+        renderTable();
+        setupPagination();
+      };
+      tagContainer.appendChild(span);
+    });
+  }
+
+  function renderTable() {
+    tableBody.innerHTML = "";
+
+    // Get search query
+    searchQuery = searchInput.value.toLowerCase().trim();
+
+    // Filter and paginate data
+    const filteredData = allData.filter(entry => {
+      const problems = entry.problems || [];
+      const filteredProblems = selectedTag && entry.solvedStatus === "yes"
+        ? problems.filter(p => p.tags?.includes(selectedTag))
+        : problems;
+
+      if (entry.solvedStatus === "yes" && selectedTag && filteredProblems.length === 0) return false;
+
+      // Check if entry matches the search query
+      const matchesSearch = entry.name.toLowerCase().includes(searchQuery) ||
+                            filteredProblems.some(p => p.title.toLowerCase().includes(searchQuery));
+
+      return matchesSearch;
+    });
+
+    const start = (currentPage - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    const currentPageData = filteredData.slice(start, end);
+
+    currentPageData.forEach((entry, index) => {
+      const problems = entry.problems || [];
+      const tags = new Set();
+      problems.forEach(p => {
+        p.tags?.split(",").forEach(tag => tags.add(tag.trim()));
+      });
+
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td class="text-center">${start + index + 1}</td>
+        <td>${entry.name}</td>
+        <td>
+  ${new Date(entry.date).toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })}
+</td>
+
+        <td class="text-center">
+          <span class="badge bg-${entry.solvedStatus === 'yes' ? 'success' : 'danger'}">${entry.solvedStatus}</span>
+        </td>
+        <td>${[...tags].map(tag => `<span class="badge bg-light text-dark border me-1">${tag}</span>`).join("") || '—'}</td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-outline-primary" onclick='showDetails(${JSON.stringify(entry).replace(/'/g, "\\'")})'>View</button>
+        </td>
+      `;
+      tableBody.appendChild(row);
+    });
+  }
+
+  function setupPagination() {
+    const filteredData = allData.filter(entry => {
+      const problems = entry.problems || [];
+      const filteredProblems = selectedTag && entry.solvedStatus === "yes"
+        ? problems.filter(p => p.tags?.includes(selectedTag))
+        : problems;
+
+      if (entry.solvedStatus === "yes" && selectedTag && filteredProblems.length === 0) return false;
+
+      const matchesSearch = entry.name.toLowerCase().includes(searchQuery) ||
+                            filteredProblems.some(p => p.title.toLowerCase().includes(searchQuery));
+
+      return matchesSearch;
+    });
+
+    const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+    pagination.innerHTML = "";
+
+    // Previous Button
+    const prevPageItem = document.createElement("li");
+    prevPageItem.className = "page-item" + (currentPage === 1 ? " disabled" : "");
+    prevPageItem.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Previous</a>`;
+    pagination.appendChild(prevPageItem);
+
+    // Page Numbers
+    for (let i = 1; i <= totalPages; i++) {
+      const pageItem = document.createElement("li");
+      pageItem.className = "page-item" + (currentPage === i ? " active" : "");
+      pageItem.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i})">${i}</a>`;
+      pagination.appendChild(pageItem);
+    }
+
+    // Next Button
+    const nextPageItem = document.createElement("li");
+    nextPageItem.className = "page-item" + (currentPage === totalPages ? " disabled" : "");
+    nextPageItem.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Next</a>`;
+    pagination.appendChild(nextPageItem);
+  }
+
+  function changePage(page) {
+    if (page < 1 || page > Math.ceil(allData.length / rowsPerPage)) return;  // Ensure valid page number
+    currentPage = page;
+    renderTable();
+    setupPagination();
+  }
+
+  function showDetails(sub) {
+    modalContent.innerHTML = `
+      <div class="mb-3"><strong>Handle:</strong> ${sub.name}</div>
+      <div class="mb-3"><strong>Date:</strong> ${sub.date}</div>
+      <div class="mb-3"><strong>Status:</strong> <span class="badge bg-${sub.solvedStatus === "yes" ? "success" : "danger"}">${sub.solvedStatus}</span></div>
+      ${sub.solvedStatus === "no" ? `
+        <div class="alert alert-warning"><strong>Why Not:</strong> ${sub.whyNot || "Not specified"}</div>
+      ` : `
+        <div class="accordion" id="problemList">
+          ${sub.problems.map((p, i) => `
+            <div class="accordion-item">
+  <h2 class="accordion-header" id="heading${i}">
+    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${i}">
+      Problem ${i + 1}: ${p.title}
+    </button>
+  </h2>
+  <div id="collapse${i}" class="accordion-collapse collapse" data-bs-parent="#problemList">
+    <div class="accordion-body">
+      <!-- Link Section -->
+      <p><strong>Link:</strong> <a href="${p.link}" target="_blank" class="text-primary">${p.link}</a></p>
+
+      <!-- Tags Section with fallback -->
+<p><strong>Tags:</strong> 
+  ${p.tags 
+    ? p.tags.split(',').map(tag => `
+      <span class="badge bg-info text-dark me-1">${tag.trim()}</span>
+    `).join('') 
+    : `<span class="badge bg-secondary text-light">NA</span>`
+  }
+</p>
+
+
+      <!-- Source Code Section -->
+      <p><strong>Source Code:</strong> 
+        <a href="${p.sourceCode}" target="_blank" class="text-success">${p.sourceCode}</a>
+      </p>
+
+      <!-- How Solved Section with additional style -->
+      <p><strong>How Solved:</strong></p>
+      <div class="alert alert-${p.howSolved ? 'success' : 'warning'}">
+        ${p.howSolved ? p.howSolved : 'Solution details not provided'}
+      </div>
+    </div>
+  </div>
+</div>
+
+          `).join("")}
+        </div>
+      `}
+    `;
+    new bootstrap.Modal(document.getElementById("detailsModal")).show();
+  }
+
+  function resetFilters() {
+    selectedTag = ""; // Clear the selected tag
+    document.querySelectorAll(".tag-btn").forEach(el => el.classList.remove("active"));
+    renderTable();
+    setupPagination();
+  }
+
+  fetchData();
+</script>
+
+</body>
+</html>

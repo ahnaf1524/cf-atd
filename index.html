@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CP Practice Log</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background-color: #f4f7fa;
+    }
+    .form-section {
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    .problem-block {
+      border-left: 4px solid #0d6efd;
+      padding-left: 15px;
+      margin-bottom: 25px;
+    }
+    .alert-container {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">CF Crackers</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="./index.html">From Fill Up</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="./manage.html">All Submissions</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container my-5">
+    <!-- Alert container for dynamic alerts -->
+    <div class="alert-container" id="alertContainer"></div>
+
+    <div class="form-section">
+      <h2 class="text-center mb-4">
+        <i class="fas fa-laptop-code"></i> Competitive Programming Practice Log
+      </h2>
+
+      <form id="cpForm">
+        <!-- Student Info -->
+        <div class="mb-3">
+          <label class="form-label"><i class="fas fa-user"></i> CF Handle *</label>
+          <input type="text" class="form-control" name="name" value="ahnaf_cp" readonly required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">
+  <i class="fas fa-calendar-alt"></i> Date *
+</label>
+<input type="date" class="form-control" name="date" id="dateInput" readonly required>
+        </div>
+
+        <!-- Solved status -->
+        <div class="mb-3">
+          <label class="form-label"><i class="fas fa-question-circle"></i> Did you solve any problem today? *</label>
+          <select class="form-select" name="solvedStatus" id="solvedStatus" required>
+            <option value="yes" selected>Yes</option>
+            <option value="no">No</option>
+          </select>
+        </div>
+
+        <!-- How many problems solved -->
+        <div class="mb-3" id="problemCountWrapper">
+          <label class="form-label"><i class="fas fa-list-ol"></i> How many problems? *</label>
+          <select class="form-select" name="problemCount" id="problemCount">
+            <option value="4" selected>4</option>
+            <option value="5">5</option>
+            <option value="7">7</option>
+            <option value="10">10</option>
+          </select>
+        </div>
+
+        <!-- Why didn't solve any -->
+        <div class="mb-3 d-none" id="whyNotWrapper">
+          <label class="form-label">Why didn’t you solve any problem today?</label>
+          <textarea class="form-control" name="whyNot" id="whyNotField" rows="3" placeholder="Explain why..."></textarea>
+        </div>
+
+        <!-- Problems container -->
+        <div id="problemsContainer"></div>
+
+        <!-- Submit -->
+        <div class="text-center">
+          <button type="submit" class="btn btn-primary px-4 mt-3">
+            <i class="fas fa-paper-plane"></i> Submit Log
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Dynamic Form Logic -->
+  <script>
+		
+    const problemContainer = document.getElementById('problemsContainer');
+    const problemCountSelect = document.getElementById('problemCount');
+    const solvedStatusSelect = document.getElementById('solvedStatus');
+    const problemCountWrapper = document.getElementById('problemCountWrapper');
+    const whyNotWrapper = document.getElementById('whyNotWrapper');
+    const alertContainer = document.getElementById('alertContainer');
+    const whyNotField = document.getElementById('whyNotField');
+		const today = new Date().toISOString().split('T')[0];
+  document.getElementById('dateInput').value = today;
+    function showAlert(type, message) {
+      const alertDiv = document.createElement('div');
+      alertDiv.classList.add('alert', `alert-${type}`);
+      alertDiv.setAttribute('role', 'alert');
+      alertDiv.textContent = message;
+
+      alertContainer.innerHTML = '';
+      alertContainer.appendChild(alertDiv);
+      alertContainer.style.display = 'block';
+
+      setTimeout(() => {
+        alertContainer.style.display = 'none';
+      }, 3000);
+    }
+
+    function createProblemFields(count) {
+      problemContainer.innerHTML = "";
+      for (let i = 1; i <= count; i++) {
+        const block = document.createElement('div');
+        block.className = 'problem-block';
+
+        block.innerHTML = `
+          <h5><i class="fas fa-terminal"></i> Problem ${i}</h5>
+
+          <div class="mb-3">
+            <div class="row">
+              <!-- Problem Title -->
+              <div class="col-md-6 mb-3">
+                <label for="problem_title_${i}" class="form-label">Problem Title *</label>
+                <input type="text" class="form-control" id="problem_title_${i}" name="problem_title_${i}" required>
+              </div>
+
+              <!-- Problem Rating -->
+              <div class="col-md-6 mb-3">
+                <label for="problem_rating_${i}" class="form-label">Problem Rating *</label>
+                <input type="number" class="form-control" id="problem_rating_${i}" name="problem_rating_${i}" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Problem Link *</label>
+            <input type="url" class="form-control" name="problem_link_${i}" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Tags (comma-separated)</label>
+            <input type="text" class="form-control" name="tags_${i}" placeholder="e.g., dp, graph, sorting">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Source Code Link (GitHub/Codeforces) *</label>
+            <input type="url" class="form-control" name="source_code_${i}" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">How you solved it?</label>
+            <textarea class="form-control" name="how_solved_${i}" rows="3" placeholder="Explain your approach..."></textarea>
+          </div>
+
+          <hr>
+        `;
+        problemContainer.appendChild(block);
+      }
+    }
+
+    // Initial load
+    createProblemFields(4);
+
+    // Handle changes
+    problemCountSelect.addEventListener('change', () => {
+      createProblemFields(parseInt(problemCountSelect.value));
+    });
+
+    solvedStatusSelect.addEventListener('change', () => {
+      const status = solvedStatusSelect.value;
+
+      if (status === "no") {
+        problemCountWrapper.classList.add("d-none");
+        problemContainer.innerHTML = "";
+        whyNotWrapper.classList.remove("d-none");
+      } else {
+        problemCountWrapper.classList.remove("d-none");
+        whyNotWrapper.classList.add("d-none");
+
+        // Ensure a default value is used if the select hasn't changed yet
+        const count = parseInt(problemCountSelect.value || "4");
+        createProblemFields(count);
+      }
+    });
+
+    document.getElementById('cpForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const formData = new FormData(event.target);
+      const data = {};
+
+      formData.forEach((value, key) => {
+        data[key] = value;
+      });
+
+      if (solvedStatusSelect.value === "no" && !whyNotField.value.trim()) {
+        showAlert("warning", "Please provide a reason for not solving any problems today.");
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:5000/api/submit", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        });
+
+        if (response.ok) {
+          showAlert("success", "Submission saved successfully!");
+          document.getElementById("cpForm").reset();
+          problemContainer.innerHTML = "";
+          createProblemFields(4);
+        } else {
+          const error = await response.json();
+          showAlert("danger", `Error: ${error.message}`);
+        }
+      } catch (error) {
+        showAlert("danger", "An error occurred while submitting. Please try again.");
+      }
+    });
+  </script>
+
+</body>
+</html>
